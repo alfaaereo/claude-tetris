@@ -25,7 +25,9 @@ All logic lives in `game.js` (a single classic script, `'use strict'`, no module
 - **Loop**: `requestAnimationFrame` loop accumulates `dt` into `dropAccum` and steps gravity when it reaches `dropInterval`. Pause and game over stop the loop with `cancelAnimationFrame(animId)`; unpausing restarts it by calling `loop()`.
 - **Lock flow**: `lockPiece()` → `merge()` → `clearLines()` (updates score/lines/level/speed) → `spawn()` (promotes `next`, rolls a new one, ends the game if the spawned piece collides, redraws the preview).
 - **Scoring/speed**: `LINE_SCORES[cleared] × level`; soft drop +1 per row, hard drop +2 per row; level = `floor(lines / 10) + 1`; `dropInterval = max(100, 1000 − (level − 1) × 90)` ms.
-- **DOM coupling**: `game.js` looks up elements by id (`board`, `next-canvas`, `score`, `lines`, `level`, `overlay`, `overlay-title`, `overlay-score`, `restart-btn`); renaming any in `index.html` breaks it. The overlay is shared by the PAUSA and GAME OVER states and shown/hidden with the `hidden` class.
+- **DOM coupling**: `game.js` looks up elements by id (`board`, `next-canvas`, `score`, `lines`, `level`, `overlay`, `overlay-title`, `overlay-score`, `restart-btn`, `theme-toggle`); renaming any in `index.html` breaks it. The overlay is shared by the PAUSA and GAME OVER states and shown/hidden with the `hidden` class.
+
+- **Theming**: colors live in CSS variables (`:root` = dark default, `[data-theme="light"]` override). `setTheme()` in `game.js` sets `data-theme`, swaps `palette` (`COLORS` / `COLORS_LIGHT`), caches `--grid` for `drawGrid()` and repaints with `draw()`/`drawNext()` (needed while paused/game over). The choice is not persisted.
 
 ## Gotchas
 
