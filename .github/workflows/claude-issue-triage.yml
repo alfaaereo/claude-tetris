@@ -85,6 +85,16 @@ jobs:
                ## Preguntas abiertas
                   (información que falta en el issue; escribe "Ninguna" si no hay)
 
+               El contenido de `.triage/diagnostico.md` se publica tal cual como comentario en el issue,
+               así que debe ser Markdown válido para GitHub (GitHub Flavored Markdown):
+               - Encabezados con `##`/`###`, listas con `-` o `1.`, **negrita** e *cursiva*.
+               - Código en línea entre comillas invertidas (`collide()`, `game.js:123`) y bloques de
+                 código con triple comilla invertida indicando el lenguaje (```js, ```html, ```css).
+               - Tablas GFM si ayudan a comparar, y listas de tareas (`- [ ]`) para los pasos de la solución.
+               - Deja una línea en blanco antes y después de encabezados, listas y bloques de código.
+               - No uses HTML crudo ni envuelvas el documento entero en un bloque de código.
+               - No incluyas un título `#` de nivel 1: el workflow ya añade uno.
+
             No modifiques ningún otro archivo del repositorio. Solo escribe dentro de `.triage/`.
 
       - name: Aplicar labels y publicar diagnóstico
