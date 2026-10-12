@@ -15,6 +15,18 @@ const COLORS = [
   '#ffb74d', // L - orange
 ];
 
+// Paleta más saturada para fondo claro (mismo orden que COLORS)
+const COLORS_LIGHT = [
+  null,
+  '#00acc1', // I
+  '#f9a825', // O
+  '#8e24aa', // T
+  '#43a047', // S
+  '#e53935', // Z
+  '#1e88e5', // J
+  '#fb8c00', // L
+];
+
 const PIECES = [
   null,
   [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]], // I
@@ -39,7 +51,10 @@ const overlay = document.getElementById('overlay');
 const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
+const themeBtn = document.getElementById('theme-toggle');
 
+let palette = COLORS;
+let gridColor = '#22222e';
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 
 function createBoard() {
@@ -158,7 +173,7 @@ function updateHUD() {
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
-  const color = COLORS[colorIndex];
+  const color = palette[colorIndex];
   context.globalAlpha = alpha ?? 1;
   context.fillStyle = color;
   context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
@@ -169,7 +184,7 @@ function drawBlock(context, x, y, colorIndex, size, alpha) {
 }
 
 function drawGrid() {
-  ctx.strokeStyle = '#22222e';
+  ctx.strokeStyle = gridColor;
   ctx.lineWidth = 0.5;
   for (let c = 1; c < COLS; c++) {
     ctx.beginPath();
@@ -256,6 +271,20 @@ function loop(ts) {
   animId = requestAnimationFrame(loop);
 }
 
+function setTheme(theme) {
+  const light = theme === 'light';
+  document.documentElement.dataset.theme = theme;
+  themeBtn.textContent = light ? 'Modo oscuro' : 'Modo claro';
+  themeBtn.setAttribute('aria-pressed', String(light));
+  palette = light ? COLORS_LIGHT : COLORS;
+  gridColor = getComputedStyle(document.documentElement).getPropertyValue('--grid').trim();
+  // En pausa o game over el bucle está detenido: repintar manualmente
+  if (current && next) {
+    draw();
+    drawNext();
+  }
+}
+
 function init() {
   board = createBoard();
   score = 0;
@@ -301,4 +330,10 @@ document.addEventListener('keydown', e => {
 
 restartBtn.addEventListener('click', init);
 
+themeBtn.addEventListener('click', () => {
+  setTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
+  themeBtn.blur(); // evita que Space active el botón durante la partida
+});
+
+setTheme('dark');
 init();
