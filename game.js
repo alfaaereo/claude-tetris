@@ -43,6 +43,155 @@ const PIECES = [
 
 const LINE_SCORES = [0, 100, 300, 500, 800];
 
+// ---- Skins ----
+// Cada skin define sus paletas (por tema; si falta 'light' se usa 'dark') y su
+// función de dibujo de bloque. El fondo y la rejilla de los canvas se definen en
+// CSS con html[data-skin="..."] (variables --canvas-bg y --grid).
+// drawBlock(context, px, py, size, color, alpha): px/py en píxeles. Debe dejar
+// el contexto como estaba (globalAlpha = 1, sin sombra).
+
+// Rectángulo con esquinas redondeadas trazado a mano (sin roundRect, por compatibilidad)
+function roundedRectPath(context, x, y, w, h, r) {
+  context.beginPath();
+  context.moveTo(x + r, y);
+  context.arcTo(x + w, y, x + w, y + h, r);
+  context.arcTo(x + w, y + h, x, y + h, r);
+  context.arcTo(x, y + h, x, y, r);
+  context.arcTo(x, y, x + w, y, r);
+  context.closePath();
+}
+
+const SKINS = {
+  retro: {
+    // Aspecto clásico: bloques cuadrados, colores planos y franja de brillo
+    colors: { dark: COLORS, light: COLORS_LIGHT },
+    drawBlock(context, px, py, size, color, alpha) {
+      context.globalAlpha = alpha;
+      context.fillStyle = color;
+      context.fillRect(px + 1, py + 1, size - 2, size - 2);
+      context.fillStyle = 'rgba(255,255,255,0.12)';
+      context.fillRect(px + 1, py + 1, size - 2, 4);
+      context.globalAlpha = 1;
+    },
+  },
+  neon: {
+    // Fondo negro en ambos temas: misma paleta fluorescente
+    colors: {
+      dark: [
+        null,
+        '#00f0ff', // I
+        '#fff200', // O
+        '#ff2bd6', // T
+        '#39ff14', // S
+        '#ff1744', // Z
+        '#2979ff', // J
+        '#ff9100', // L
+        '#d0d8ff', // N - tuerca
+      ],
+    },
+    drawBlock(context, px, py, size, color, alpha) {
+      context.globalAlpha = alpha;
+      context.shadowColor = color;
+      context.shadowBlur = size * 0.5;
+      // Contorno luminoso con glow
+      context.strokeStyle = color;
+      context.lineWidth = 2;
+      context.strokeRect(px + 3, py + 3, size - 6, size - 6);
+      // Núcleo translúcido
+      context.shadowBlur = 0;
+      context.globalAlpha = alpha * 0.35;
+      context.fillStyle = color;
+      context.fillRect(px + 4, py + 4, size - 8, size - 8);
+      // Restablecer el contexto para los demás dibujos
+      context.shadowColor = 'transparent';
+      context.globalAlpha = 1;
+    },
+  },
+  pastel: {
+    colors: {
+      dark: [
+        null,
+        '#a8e6ef', // I
+        '#fff1a8', // O
+        '#d7b8f3', // T
+        '#b5ead7', // S
+        '#ffb7b2', // Z
+        '#b8d8ff', // J
+        '#ffd8a8', // L
+        '#d5dbe1', // N - tuerca
+      ],
+      light: [
+        null,
+        '#7fd3df', // I
+        '#f7dc6f', // O
+        '#c39bd3', // T
+        '#88d8b0', // S
+        '#ff9aa2', // Z
+        '#8fbff0', // J
+        '#ffc48a', // L
+        '#b8c2cc', // N - tuerca
+      ],
+    },
+    drawBlock(context, px, py, size, color, alpha) {
+      const r = size * 0.25;
+      context.globalAlpha = alpha;
+      roundedRectPath(context, px + 2, py + 2, size - 4, size - 4, r);
+      context.fillStyle = color;
+      context.fill();
+      context.strokeStyle = 'rgba(0,0,0,0.12)';
+      context.lineWidth = 1;
+      context.stroke();
+      // Brillo suave en la esquina superior
+      roundedRectPath(context, px + 5, py + 5, size * 0.4, size * 0.2, size * 0.1);
+      context.fillStyle = 'rgba(255,255,255,0.45)';
+      context.fill();
+      context.globalAlpha = 1;
+    },
+  },
+  pixel: {
+    colors: { dark: COLORS, light: COLORS_LIGHT },
+    drawBlock(context, px, py, size, color, alpha) {
+      const p = Math.max(1, Math.floor(size / 10)); // tamaño de un "píxel"
+      const x = px + 1, y = py + 1, s = size - 2;
+      context.globalAlpha = alpha;
+      context.fillStyle = color;
+      context.fillRect(x, y, s, s);
+      // Bisel pixelado: luz arriba/izquierda, sombra abajo/derecha
+      context.fillStyle = 'rgba(255,255,255,0.4)';
+      context.fillRect(x, y, s, p);
+      context.fillRect(x, y, p, s);
+      context.fillStyle = 'rgba(0,0,0,0.35)';
+      context.fillRect(x, y + s - p, s, p);
+      context.fillRect(x + s - p, y, p, s);
+      // Tramado (dither) en damero dentro del bloque
+      context.fillStyle = 'rgba(0,0,0,0.14)';
+      const inner = s - 2 * p;
+      for (let j = 0; j * p < inner; j++)
+        for (let i = (j % 2); i * p < inner; i += 2)
+          context.fillRect(x + p + i * p, y + p + j * p,
+            Math.min(p, inner - i * p), Math.min(p, inner - j * p));
+      context.globalAlpha = 1;
+    },
+  },
+};
+
+const DEFAULT_SKIN = 'retro';
+const SKIN_STORAGE_KEY = 'tetris-skin';
+
+function loadSkin() {
+  try {
+    const saved = localStorage.getItem(SKIN_STORAGE_KEY);
+    if (saved && Object.prototype.hasOwnProperty.call(SKINS, saved)) return saved;
+  } catch (e) { /* localStorage no disponible */ }
+  return DEFAULT_SKIN;
+}
+
+function saveSkin(name) {
+  try {
+    localStorage.setItem(SKIN_STORAGE_KEY, name);
+  } catch (e) { /* localStorage no disponible */ }
+}
+
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const nextCanvas = document.getElementById('next-canvas');
@@ -55,8 +204,10 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeBtn = document.getElementById('theme-toggle');
+const skinSelect = document.getElementById('skin-select');
 
 let palette = COLORS;
+let skinName = DEFAULT_SKIN;
 let gridColor = '#22222e';
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 
@@ -174,16 +325,10 @@ function updateHUD() {
   levelEl.textContent = level;
 }
 
+// Delega en la función de dibujo de la skin activa (x/y en celdas)
 function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
-  const color = palette[colorIndex];
-  context.globalAlpha = alpha ?? 1;
-  context.fillStyle = color;
-  context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
-  // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
-  context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
-  context.globalAlpha = 1;
+  SKINS[skinName].drawBlock(context, x * size, y * size, size, palette[colorIndex], alpha ?? 1);
 }
 
 function drawGrid() {
@@ -282,13 +427,29 @@ function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
   themeBtn.textContent = light ? 'Modo oscuro' : 'Modo claro';
   themeBtn.setAttribute('aria-pressed', String(light));
-  palette = light ? COLORS_LIGHT : COLORS;
+  applyAppearance();
+}
+
+// ---- Skins: aplicar ----
+// Único punto donde la paleta y la rejilla se eligen en función de (skin, tema)
+function applyAppearance() {
+  const theme = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+  const colors = SKINS[skinName].colors;
+  palette = colors[theme] || colors.dark;
   gridColor = getComputedStyle(document.documentElement).getPropertyValue('--grid').trim();
   // En pausa o game over el bucle está detenido: repintar manualmente
   if (current && next) {
     draw();
     drawNext();
   }
+}
+
+function setSkin(name) {
+  skinName = Object.prototype.hasOwnProperty.call(SKINS, name) ? name : DEFAULT_SKIN;
+  document.documentElement.dataset.skin = skinName;
+  skinSelect.value = skinName;
+  saveSkin(skinName);
+  applyAppearance();
 }
 
 function init() {
@@ -341,5 +502,21 @@ themeBtn.addEventListener('click', () => {
   themeBtn.blur(); // evita que Space active el botón durante la partida
 });
 
+// Teclas del juego: no deben cambiar el selector de skin si tiene el foco
+const GAME_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyX', 'KeyP'];
+
+skinSelect.addEventListener('change', () => {
+  setSkin(skinSelect.value);
+  skinSelect.blur(); // evita que Space y las flechas actúen sobre el selector durante la partida
+});
+
+skinSelect.addEventListener('keydown', e => {
+  if (GAME_KEYS.includes(e.code)) {
+    e.preventDefault(); // la tecla sigue llegando al manejador del juego en document
+    skinSelect.blur();
+  }
+});
+
+setSkin(loadSkin());
 setTheme('dark');
 init();

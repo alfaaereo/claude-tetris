@@ -36,6 +36,23 @@
   --grid: #e1e4ef;
 }
 
+/* ---- Skins: fondo y rejilla de los canvas ----
+   Retro y Pixel art usan los valores del tema. Neon es negro en ambos temas. */
+html[data-skin="neon"] {
+  --canvas-bg: #000000;
+  --grid: #10161f;
+}
+
+html[data-skin="pastel"] {
+  --canvas-bg: #24212e;
+  --grid: #2e2a3a;
+}
+
+html[data-skin="pastel"][data-theme="light"] {
+  --canvas-bg: #fffaf4;
+  --grid: #f0e6dc;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -199,11 +216,17 @@ kbd {
   background: var(--accent-hover);
 }
 
-/* ---- Selector de tema ---- */
-#theme-toggle {
+/* ---- Selector de tema y de skin ---- */
+.top-controls {
   position: fixed;
   top: 16px;
   right: 16px;
+  display: flex;
+  gap: 8px;
+}
+
+#theme-toggle,
+#skin-select {
   background: var(--canvas-bg);
   color: var(--text);
   border: 1px solid var(--panel-border);
@@ -214,11 +237,13 @@ kbd {
   cursor: pointer;
 }
 
-#theme-toggle:hover {
+#theme-toggle:hover,
+#skin-select:hover {
   border-color: var(--accent);
 }
 
 #theme-toggle:focus-visible,
+#skin-select:focus-visible,
 #restart-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
