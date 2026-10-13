@@ -19,7 +19,7 @@ There is no build, lint or test step. Verify changes by playing the game in a br
 
 All logic lives in `game.js` (a single classic script, `'use strict'`, no modules). State is module-level `let` globals (`board`, `current`, `next`, `score`, `lines`, `level`, `paused`, `gameOver`, `dropInterval`, `animId`, …) reset by `init()`, which the restart button also calls.
 
-- **Board**: `ROWS × COLS` matrix; `0` = empty, `1–7` = piece type. The same number indexes `PIECES` and `COLORS` (both have `null` at index 0), so piece shape cells store their own type id, and merging a piece just copies cell values into the board.
+- **Board**: `ROWS × COLS` matrix; `0` = empty, `1–8` = piece type (1–7 are the standard tetrominoes, 8 is the "tuerca": a 3×3 ring with an empty center, a challenge piece drawn with the same probability as the others). The same number indexes `PIECES` and `COLORS` (both have `null` at index 0), so piece shape cells store their own type id, and merging a piece just copies cell values into the board.
 - **Pieces**: square matrices; rotation is `rotateCW` (clockwise only) and `tryRotate` applies simple horizontal kicks `[0, -1, 1, -2, 2]`, not SRS.
 - **Collision**: `collide(shape, x, y)` is the single source of truth for movement, rotation, ghost (`ghostY`), drops and spawn/game-over detection. Rows above the board (`y < 0`) are allowed.
 - **Loop**: `requestAnimationFrame` loop accumulates `dt` into `dropAccum` and steps gravity when it reaches `dropInterval`. Pause and game over stop the loop with `cancelAnimationFrame(animId)`; unpausing restarts it by calling `loop()`.
