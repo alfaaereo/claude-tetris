@@ -268,6 +268,9 @@ function loop(ts) {
     }
   }
   draw();
+  // endGame() cancela animId, pero dentro del frame en curso eso no tiene efecto:
+  // si la partida terminó en este paso, no reprogramar el bucle
+  if (gameOver) return;
   animId = requestAnimationFrame(loop);
 }
 
