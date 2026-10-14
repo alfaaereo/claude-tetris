@@ -82,6 +82,10 @@ const PIECES = [
 const LINE_SCORES = [0, 100, 300, 500, 800];
 const MAX_START_LEVEL = 10;
 
+const RECORDS_KEY = 'tetris-records';
+const PLAYER_KEY = 'tetris-player';
+const MAX_RECORDS = 5;
+
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const nextCanvas = document.getElementById('next-canvas');
@@ -101,6 +105,14 @@ const startLevelSel = document.getElementById('start-level');
 const skinSelect = document.getElementById('skin-select');
 
 const SKIN_KEY = 'tetris-skin';
+const recordMsg = document.getElementById('record-msg');
+const recordForm = document.getElementById('record-form');
+const playerInput = document.getElementById('player-name');
+const recordsSection = document.getElementById('records');
+const recordsBody = document.getElementById('records-body');
+const bestComboEl = document.getElementById('best-combo');
+const maxLinesEl = document.getElementById('max-lines');
+const resetRecordsBtn = document.getElementById('reset-records-btn');
 
 let palette = COLORS;
 let skin = 'retro';
@@ -111,6 +123,11 @@ let board, current, next, score, lines, level, paused, gameOver, lastTime, dropA
 // estas se ignoran hasta soltarlas para no mover la pieza al volver al juego
 const heldKeys = new Set();
 const blockedKeys = new Set();
+// combo = piezas consecutivas que limpian al menos una línea
+let combo, maxCombo;
+let started = false; // false mientras se muestra la pantalla de inicio
+let records = loadRecords();
+let pendingEntry = null; // puntuación de la partida que entra en el top, aún sin nombre
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -173,7 +190,11 @@ function clearLines() {
       r++;
     }
   }
-  if (cleared) {
+  if (!cleared) {
+    combo = 0;
+  } else {
+    combo++;
+    maxCombo = Math.max(maxCombo, combo);
     lines += cleared;
     score += (LINE_SCORES[cleared] || 0) * level;
     level = startLevel + Math.floor(lines / 10);
@@ -373,13 +394,6 @@ function drawNext() {
       drawBlock(nextCtx, offX + c, offY + r, shape[r][c], NB);
 }
 
-function showOverlay(mode, title, text) {
-  overlay.dataset.mode = mode;
-  overlayTitle.textContent = title;
-  overlayScore.textContent = text;
-  showControls(false);
-  overlay.classList.remove('hidden');
-}
 
 function hideOverlay() {
   overlay.classList.add('hidden');
@@ -392,15 +406,162 @@ function showControls(show) {
   controlsBtn.setAttribute('aria-expanded', String(show));
 }
 
-function endGame() {
-  gameOver = true;
-  cancelAnimationFrame(animId);
-  showOverlay('gameover', 'GAME OVER', `Puntuación: ${score.toLocaleString()}`);
+// ---- Récords (localStorage) ----
+
+function loadRecords() {
+  try {
+    const data = JSON.parse(localStorage.getItem(RECORDS_KEY));
+    if (data && Array.isArray(data.top)) {
+      return {
+        top: data.top.slice(0, MAX_RECORDS),
+        bestCombo: data.bestCombo || 0,
+        maxLines: data.maxLines || 0,
+      };
+    }
+  } catch { /* datos corruptos o storage no disponible */ }
+  return { top: [], bestCombo: 0, maxLines: 0 };
+}
+
+function saveRecords() {
+  try {
+    localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
+  } catch { /* storage no disponible: los récords solo duran esta sesión */ }
+}
+
+function lastPlayerName() {
+  try {
+    return localStorage.getItem(PLAYER_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+// Posición (0-based) que ocuparía la puntuación en el top, o -1 si no entra.
+// Con empate, la puntuación más antigua queda por delante.
+function recordRank(s) {
+  if (s <= 0) return -1;
+  const i = records.top.findIndex(r => s > r.score);
+  if (i !== -1) return i;
+  return records.top.length < MAX_RECORDS ? records.top.length : -1;
+}
+
+function renderRecords(list, highlight = -1) {
+  recordsBody.replaceChildren();
+  if (!list.length) {
+    const td = document.createElement('td');
+    td.colSpan = 5;
+    td.className = 'empty';
+    td.textContent = 'Sin récords todavía';
+    const tr = document.createElement('tr');
+    tr.append(td);
+    recordsBody.append(tr);
+  }
+  list.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    if (i === highlight) tr.className = 'highlight';
+    for (const v of [i + 1, r.name, r.score.toLocaleString(), r.lines, `x${r.combo}`]) {
+      const td = document.createElement('td');
+      td.textContent = v;
+      tr.append(td);
+    }
+    recordsBody.append(tr);
+  });
+  bestComboEl.textContent = `x${records.bestCombo}`;
+  maxLinesEl.textContent = records.maxLines;
+}
+
+// Tabla con la puntuación pendiente insertada en su puesto y resaltada
+function renderPendingPreview() {
+  const rank = recordRank(pendingEntry.score);
+  if (rank === -1) return renderRecords(records.top);
+  const entry = { ...pendingEntry, name: playerInput.value.trim() || 'Tú' };
+  const list = [...records.top];
+  list.splice(rank, 0, entry);
+  renderRecords(list.slice(0, MAX_RECORDS), rank);
+  recordMsg.textContent = `¡Nuevo récord! Puesto ${rank + 1} de ${MAX_RECORDS}`;
+}
+
+function savePendingRecord() {
+  if (!pendingEntry) return;
+  const rank = recordRank(pendingEntry.score);
+  const typed = playerInput.value.trim();
+  records.top.splice(rank, 0, { ...pendingEntry, name: typed || 'Anónimo' });
+  records.top.length = Math.min(records.top.length, MAX_RECORDS);
+  saveRecords();
+  try {
+    if (typed) localStorage.setItem(PLAYER_KEY, typed); // proponerlo en el próximo récord
+  } catch { /* ignorar */ }
+  pendingEntry = null;
+  recordForm.hidden = true;
+  recordMsg.textContent = `¡Récord guardado! Puesto ${rank + 1} de ${MAX_RECORDS}`;
+  renderRecords(records.top, rank);
+}
+
+function resetRecords() {
+  if (!confirm('¿Borrar todos los récords?')) return;
+  records = { top: [], bestCombo: 0, maxLines: 0 };
+  saveRecords();
+  if (pendingEntry) renderPendingPreview();
+  else renderRecords(records.top);
+}
+
+// ---- Overlay: 'start' | 'pause' | 'gameover' ----
+
+function showOverlay(mode, title, text) {
+  overlay.dataset.mode = mode;
+  overlay.classList.toggle('is-start', mode === 'start');
+  overlayTitle.textContent = title;
+  overlayScore.textContent = text;
+  recordsSection.hidden = mode === 'pause';
+  if (mode !== 'gameover') {
+    recordMsg.hidden = true;
+    recordForm.hidden = true;
+  }
+  restartBtn.textContent = mode === 'start' ? 'Jugar' : 'Reiniciar';
+  showControls(false);
+  overlay.classList.remove('hidden');
+}
+
+function showStartScreen() {
+  renderRecords(records.top);
+  showOverlay('start', '¿PREPARADO?', '');
   restartBtn.focus();
 }
 
+function endGame() {
+  gameOver = true;
+  cancelAnimationFrame(animId);
+
+  records.bestCombo = Math.max(records.bestCombo, maxCombo);
+  records.maxLines = Math.max(records.maxLines, lines);
+  saveRecords();
+
+  const rank = recordRank(score);
+  recordMsg.hidden = false;
+  recordMsg.classList.toggle('is-new', rank !== -1);
+  if (rank !== -1) {
+    pendingEntry = { score, lines, combo: maxCombo };
+    playerInput.value = lastPlayerName();
+    recordForm.hidden = false;
+    renderPendingPreview();
+  } else {
+    pendingEntry = null;
+    recordForm.hidden = true;
+    recordMsg.textContent = `No entras en el top ${MAX_RECORDS}`;
+    renderRecords(records.top);
+  }
+  showOverlay('gameover', 'GAME OVER',
+    `Puntuación: ${score.toLocaleString()}\nLíneas: ${lines} · Mejor combo: x${maxCombo}`);
+  if (pendingEntry) {
+    playerInput.focus();
+    playerInput.select();
+  } else {
+    restartBtn.focus();
+  }
+}
+
 function pause() {
-  if (paused || gameOver) return;
+  if (paused || gameOver || !started) return;
   paused = true;
   cancelAnimationFrame(animId);
   showOverlay('pause', 'PAUSA', '');
@@ -474,11 +635,13 @@ function loadSkin() {
   try { return localStorage.getItem(SKIN_KEY) || 'retro'; } catch (e) { return 'retro'; }
 }
 
-function init() {
+function resetState() {
   board = createBoard();
   score = 0;
   lines = 0;
   level = startLevel;
+  combo = 0;
+  maxCombo = 0;
   paused = false;
   gameOver = false;
   dropInterval = speedFor(level);
@@ -487,6 +650,12 @@ function init() {
   next = randomPiece();
   spawn();
   updateHUD();
+}
+
+function init() {
+  savePendingRecord(); // si se reinicia sin pulsar Guardar, no perder el récord
+  resetState();
+  started = true;
   hideOverlay();
   heldKeys.forEach(code => blockedKeys.add(code));
   cancelAnimationFrame(animId);
@@ -495,6 +664,7 @@ function init() {
 
 document.addEventListener('keydown', e => {
   heldKeys.add(e.code);
+  if (e.target === playerInput) return; // escribiendo el nombre
   if (e.code === 'KeyP' || e.code === 'Escape') {
     if (e.repeat) return;
     // Con la lista de controles abierta, Escape vuelve al menú principal
@@ -507,7 +677,7 @@ document.addEventListener('keydown', e => {
     return;
   }
   // Menú abierto: ningún input llega al juego (el teclado solo navega el menú)
-  if (paused || gameOver) return;
+  if (paused || gameOver || !started) return;
   // si el selector de skin conserva el foco, las teclas de juego no deben cambiarlo
   if (e.target === skinSelect) {
     e.preventDefault();
@@ -553,6 +723,12 @@ window.addEventListener('blur', () => {
 for (let l = 1; l <= MAX_START_LEVEL; l++) startLevelSel.add(new Option(String(l), String(l)));
 startLevelSel.addEventListener('change', () => {
   startLevel = Number(startLevelSel.value);
+  // En la pantalla de inicio la partida aún no empezó: reflejar el nivel elegido
+  if (!started) {
+    level = startLevel;
+    dropInterval = speedFor(level);
+    updateHUD();
+  }
 });
 
 resumeBtn.addEventListener('click', resume);
@@ -560,6 +736,18 @@ restartBtn.addEventListener('click', init);
 controlsBtn.addEventListener('click', () => {
   showControls(menuControls.classList.contains('hidden'));
 });
+
+recordForm.addEventListener('submit', e => {
+  e.preventDefault();
+  savePendingRecord();
+  restartBtn.focus();
+});
+
+playerInput.addEventListener('input', () => {
+  if (pendingEntry) renderPendingPreview();
+});
+
+resetRecordsBtn.addEventListener('click', resetRecords);
 
 themeBtn.addEventListener('click', () => {
   setTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
@@ -572,5 +760,8 @@ skinSelect.addEventListener('change', () => {
 });
 
 setSkin(loadSkin());
+
+// Pantalla de inicio: tablero vacío con la pieza inicial y la tabla de récords
+resetState();
 setTheme('dark');
-init();
+showStartScreen();
