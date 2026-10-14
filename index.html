@@ -39,17 +39,33 @@
             <li><kbd>↑</kbd> rotar</li>
             <li><kbd>↓</kbd> bajar</li>
             <li><kbd>Space</kbd> caída</li>
-            <li><kbd>P</kbd> pausa</li>
+            <li><kbd>P</kbd><kbd>Esc</kbd> pausa</li>
           </ul>
         </div>
       </aside>
     </div>
 
-    <div id="overlay" class="overlay hidden">
-      <div class="overlay-box">
+    <div id="overlay" class="overlay hidden" data-mode="gameover">
+      <div class="overlay-box" role="dialog" aria-labelledby="overlay-title">
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
-        <button id="restart-btn">Reiniciar</button>
+        <div class="menu">
+          <button id="resume-btn" class="menu-btn pause-only" type="button">Reanudar</button>
+          <button id="restart-btn" class="menu-btn" type="button">Reiniciar</button>
+          <button id="controls-btn" class="menu-btn secondary pause-only" type="button" aria-expanded="false" aria-controls="menu-controls">Ver controles</button>
+        </div>
+        <ul id="menu-controls" class="menu-controls pause-only hidden">
+          <li><span><kbd>←</kbd><kbd>→</kbd></span> mover</li>
+          <li><span><kbd>↑</kbd> <kbd>X</kbd></span> rotar</li>
+          <li><span><kbd>↓</kbd></span> bajar</li>
+          <li><span><kbd>Space</kbd></span> caída</li>
+          <li><span><kbd>P</kbd> <kbd>Esc</kbd></span> pausa / menú</li>
+        </ul>
+        <label class="level-picker">
+          Nivel inicial
+          <select id="start-level"></select>
+        </label>
+        <p class="level-hint">Se aplica en la próxima partida</p>
       </div>
     </div>
   </div>
