@@ -7,7 +7,16 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <button id="theme-toggle" type="button" aria-pressed="false">Modo claro</button>
+  <div class="toolbar">
+    <label class="skin-label" for="skin-select">Skin</label>
+    <select id="skin-select">
+      <option value="retro">Retro</option>
+      <option value="neon">Neon</option>
+      <option value="pastel">Pastel</option>
+      <option value="pixel">Pixel art</option>
+    </select>
+    <button id="theme-toggle" type="button" aria-pressed="false">Modo claro</button>
+  </div>
   <h1 class="title">TETRIS</h1>
   <div class="wrapper">
     <div class="game-container">
