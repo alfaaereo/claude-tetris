@@ -199,11 +199,32 @@ kbd {
   background: var(--accent-hover);
 }
 
-/* ---- Selector de tema ---- */
-#theme-toggle {
+/* ---- Skin Neon: tableros siempre en negro ---- */
+:root[data-skin="neon"] {
+  --canvas-bg: #000000;
+  --grid: #0d0d16;
+}
+
+/* ---- Barra superior: skin + tema ---- */
+.toolbar {
   position: fixed;
   top: 16px;
   right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skin-label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--label);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+#skin-select,
+#theme-toggle {
   background: var(--canvas-bg);
   color: var(--text);
   border: 1px solid var(--panel-border);
@@ -214,10 +235,12 @@ kbd {
   cursor: pointer;
 }
 
+#skin-select:hover,
 #theme-toggle:hover {
   border-color: var(--accent);
 }
 
+#skin-select:focus-visible,
 #theme-toggle:focus-visible,
 #restart-btn:focus-visible {
   outline: 2px solid var(--accent);
